@@ -140,7 +140,6 @@ app.layout = html.Div(
                         round(np.pi / 4, 2): "π/4",
                         round(np.pi / 2, 2): "π/2",
                     },
-                    updatemode="drag",
                     tooltip={"placement": "bottom", "always_visible": True},
                 ),
                 html.Br(),
@@ -152,7 +151,6 @@ app.layout = html.Div(
                     step=0.01,
                     value=0.0,
                     marks={0: "0", round(np.pi, 2): "π", round(2 * np.pi, 2): "2π"},
-                    updatemode="drag",
                     tooltip={"placement": "bottom", "always_visible": True},
                 ),
                 html.Br(),
@@ -164,7 +162,6 @@ app.layout = html.Div(
                     step=0.01,
                     value=0.0,
                     marks={0: "0", round(np.pi, 2): "π", round(2 * np.pi, 2): "2π"},
-                    updatemode="drag",
                     tooltip={"placement": "bottom", "always_visible": True},
                 ),
                 html.Br(),
@@ -176,7 +173,6 @@ app.layout = html.Div(
                     step=0.02,
                     value=DEFAULT_S,
                     marks={1: "1", 2: "2", 3: "3", 4: "4"},
-                    updatemode="drag",
                     tooltip={"placement": "bottom", "always_visible": True},
                 ),
                 html.Br(),
@@ -281,26 +277,11 @@ app.layout = html.Div(
 @app.callback(
     Output("ellipsoid-graph", "figure", allow_duplicate=True),
     Input("eta-slider", "value"),
-    Input("trajectory-toggle", "value"),
-    Input("theta1-circle-toggle", "value"),
-    Input("theta2-circle-toggle", "value"),
-    Input("gamma1-toggle", "value"),
-    Input("gamma2-toggle", "value"),
-    Input("contact-planes1-toggle", "value"),
-    Input("contact-planes2-toggle", "value"),
     State("theta1-slider", "value"),
     State("theta2-slider", "value"),
     prevent_initial_call=True,
 )
-def update_graph(eta, trajectory_toggle, theta1_circle_toggle, theta2_circle_toggle, gamma1_toggle, gamma2_toggle, contact_planes1_toggle, contact_planes2_toggle, theta1, theta2):
-    show_trajectory = "show" in trajectory_toggle
-    show_theta1_circle = "show" in theta1_circle_toggle
-    show_theta2_circle = "show" in theta2_circle_toggle
-    show_gamma1 = "show" in gamma1_toggle
-    show_gamma2 = "show" in gamma2_toggle
-    show_contact_planes1 = "show" in contact_planes1_toggle
-    show_contact_planes2 = "show" in contact_planes2_toggle
-
+def update_eta_geometry(eta, theta1, theta2):
     X, Y, Z = ellipsoid.torus_surface(eta, n1=140, n2=140)
     Xt, Yt, Zt = ellipsoid.reeb_trajectory(eta, theta1_0=0.0, theta2_0=0.0, T=12.0, N=2500)
     Xc1, Yc1, Zc1 = ellipsoid.theta1_circle(eta, theta1, n=MOVING_CIRCLE_SAMPLES)
@@ -313,14 +294,39 @@ def update_graph(eta, trajectory_toggle, theta1_circle_toggle, theta2_circle_tog
     patched_figure["data"][TRACE_INDEX_REEB]["x"] = Xt.tolist()
     patched_figure["data"][TRACE_INDEX_REEB]["y"] = Yt.tolist()
     patched_figure["data"][TRACE_INDEX_REEB]["z"] = Zt.tolist()
-    patched_figure["data"][TRACE_INDEX_REEB]["visible"] = show_trajectory
     patched_figure["data"][TRACE_INDEX_THETA1_CIRCLE]["x"] = Xc1.tolist()
     patched_figure["data"][TRACE_INDEX_THETA1_CIRCLE]["y"] = Yc1.tolist()
     patched_figure["data"][TRACE_INDEX_THETA1_CIRCLE]["z"] = Zc1.tolist()
-    patched_figure["data"][TRACE_INDEX_THETA1_CIRCLE]["visible"] = show_theta1_circle
     patched_figure["data"][TRACE_INDEX_THETA2_CIRCLE]["x"] = Xc2.tolist()
     patched_figure["data"][TRACE_INDEX_THETA2_CIRCLE]["y"] = Yc2.tolist()
     patched_figure["data"][TRACE_INDEX_THETA2_CIRCLE]["z"] = Zc2.tolist()
+
+    return patched_figure
+
+
+@app.callback(
+    Output("ellipsoid-graph", "figure", allow_duplicate=True),
+    Input("trajectory-toggle", "value"),
+    Input("theta1-circle-toggle", "value"),
+    Input("theta2-circle-toggle", "value"),
+    Input("gamma1-toggle", "value"),
+    Input("gamma2-toggle", "value"),
+    Input("contact-planes1-toggle", "value"),
+    Input("contact-planes2-toggle", "value"),
+    prevent_initial_call=True,
+)
+def update_visibility(trajectory_toggle, theta1_circle_toggle, theta2_circle_toggle, gamma1_toggle, gamma2_toggle, contact_planes1_toggle, contact_planes2_toggle):
+    show_trajectory = "show" in trajectory_toggle
+    show_theta1_circle = "show" in theta1_circle_toggle
+    show_theta2_circle = "show" in theta2_circle_toggle
+    show_gamma1 = "show" in gamma1_toggle
+    show_gamma2 = "show" in gamma2_toggle
+    show_contact_planes1 = "show" in contact_planes1_toggle
+    show_contact_planes2 = "show" in contact_planes2_toggle
+
+    patched_figure = Patch()
+    patched_figure["data"][TRACE_INDEX_REEB]["visible"] = show_trajectory
+    patched_figure["data"][TRACE_INDEX_THETA1_CIRCLE]["visible"] = show_theta1_circle
     patched_figure["data"][TRACE_INDEX_THETA2_CIRCLE]["visible"] = show_theta2_circle
     patched_figure["data"][TRACE_INDEX_GAMMA1]["visible"] = show_gamma1
     patched_figure["data"][TRACE_INDEX_GAMMA2]["visible"] = show_gamma2
@@ -359,13 +365,9 @@ def update_moving_circles(theta1, theta2, eta):
     Input("s-slider", "value"),
     Input("m1-input", "value"),
     Input("m2-input", "value"),
-    Input("braid1-toggle", "value"),
-    Input("braid2-toggle", "value"),
     prevent_initial_call=True,
 )
-def update_braids(s, m1, m2, braid1_toggle, braid2_toggle):
-    show_braid1 = "show" in braid1_toggle
-    show_braid2 = "show" in braid2_toggle
+def update_braids_geometry(s, m1, m2):
     m1 = sanitize_multiplicity(m1, DEFAULT_M1)
     m2 = sanitize_multiplicity(m2, DEFAULT_M2)
     braid_branches = ellipsoid.braid_slice_branches(s, m1, m2, n=BRAID_SAMPLES)
@@ -376,11 +378,31 @@ def update_braids(s, m1, m2, braid1_toggle, braid2_toggle):
     patched_figure["data"][TRACE_INDEX_BRAID1]["x"] = braid1[0].tolist()
     patched_figure["data"][TRACE_INDEX_BRAID1]["y"] = braid1[1].tolist()
     patched_figure["data"][TRACE_INDEX_BRAID1]["z"] = braid1[2].tolist()
-    patched_figure["data"][TRACE_INDEX_BRAID1]["visible"] = show_braid1 and len(braid_branches) >= 1
     patched_figure["data"][TRACE_INDEX_BRAID2]["x"] = braid2[0].tolist()
     patched_figure["data"][TRACE_INDEX_BRAID2]["y"] = braid2[1].tolist()
     patched_figure["data"][TRACE_INDEX_BRAID2]["z"] = braid2[2].tolist()
-    patched_figure["data"][TRACE_INDEX_BRAID2]["visible"] = show_braid2 and len(braid_branches) >= 2
+    return patched_figure
+
+
+@app.callback(
+    Output("ellipsoid-graph", "figure", allow_duplicate=True),
+    Input("braid1-toggle", "value"),
+    Input("braid2-toggle", "value"),
+    State("s-slider", "value"),
+    State("m1-input", "value"),
+    State("m2-input", "value"),
+    prevent_initial_call=True,
+)
+def update_braid_visibility(braid1_toggle, braid2_toggle, s, m1, m2):
+    show_braid1 = "show" in braid1_toggle
+    show_braid2 = "show" in braid2_toggle
+    m1 = sanitize_multiplicity(m1, DEFAULT_M1)
+    m2 = sanitize_multiplicity(m2, DEFAULT_M2)
+    branch_count = len(ellipsoid.braid_etas(s, m1, m2))
+
+    patched_figure = Patch()
+    patched_figure["data"][TRACE_INDEX_BRAID1]["visible"] = show_braid1 and branch_count >= 1
+    patched_figure["data"][TRACE_INDEX_BRAID2]["visible"] = show_braid2 and branch_count >= 2
 
     return patched_figure
 
