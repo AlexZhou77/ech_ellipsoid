@@ -113,6 +113,7 @@ def make_figure(eta, theta1, theta2, s=DEFAULT_S, m1=DEFAULT_M1, m2=DEFAULT_M2, 
 
 # The Dash app layout and callbacks
 app = Dash(__name__)
+server = app.server
 
 app.layout = html.Div(
     style={"fontFamily": "Arial, sans-serif", "height": "100vh", "display": "flex", "backgroundColor": "white"},
