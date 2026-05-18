@@ -10,16 +10,14 @@ ellipsoid = Ellipsoid(a, b)
 
 TRACE_INDEX_SURFACE = 0
 TRACE_INDEX_REEB = 1
-TRACE_INDEX_THETA1_CIRCLE = 2
-TRACE_INDEX_THETA2_CIRCLE = 3
-TRACE_INDEX_GAMMA1 = 4
-TRACE_INDEX_GAMMA2 = 5
-TRACE_INDEX_CONTACT_PLANES1 = 6
-TRACE_INDEX_CONTACT_PLANE_EDGES1 = 7
-TRACE_INDEX_CONTACT_PLANES2 = 8
-TRACE_INDEX_CONTACT_PLANE_EDGES2 = 9
-TRACE_INDEX_BRAID1 = 10
-TRACE_INDEX_BRAID2 = 11
+TRACE_INDEX_GAMMA1 = 2
+TRACE_INDEX_GAMMA2 = 3
+TRACE_INDEX_CONTACT_PLANES1 = 4
+TRACE_INDEX_CONTACT_PLANE_EDGES1 = 5
+TRACE_INDEX_CONTACT_PLANES2 = 6
+TRACE_INDEX_CONTACT_PLANE_EDGES2 = 7
+TRACE_INDEX_BRAID1 = 8
+TRACE_INDEX_BRAID2 = 9
 
 MOVING_CIRCLE_SAMPLES = 360
 BRAID_SAMPLES = 500
@@ -38,7 +36,7 @@ def sanitize_multiplicity(value, default=1):
     return max(1, int(value))
 
 
-def make_figure(eta, theta1, theta2, s=DEFAULT_S, m1=DEFAULT_M1, m2=DEFAULT_M2, show_trajectory=False, show_theta1_circle=False, show_theta2_circle=False, show_gamma1=True, show_gamma2=True, show_contact_planes1=False, show_contact_planes2=False, show_braid1=False, show_braid2=False):
+def make_figure(eta, s=DEFAULT_S, m1=DEFAULT_M1, m2=DEFAULT_M2, show_trajectory=False, show_gamma1=True, show_gamma2=True, show_contact_planes1=False, show_contact_planes2=False, show_braid1=False, show_braid2=False):
     fig = go.Figure()
 
     m1 = sanitize_multiplicity(m1, DEFAULT_M1)
@@ -53,16 +51,6 @@ def make_figure(eta, theta1, theta2, s=DEFAULT_S, m1=DEFAULT_M1, m2=DEFAULT_M2, 
     Xt, Yt, Zt = ellipsoid.reeb_trajectory(eta, theta1_0=0.0, theta2_0=0.0, T=12.0, N=2500)
 
     fig.add_trace(go.Scatter3d(x=Xt, y=Yt, z=Zt, mode="lines", line=dict(width=4, color="#be185d"), name="Reeb trajectory", visible=show_trajectory))
-
-    # Circle with fixed theta1
-    Xc1, Yc1, Zc1 = ellipsoid.theta1_circle(eta, theta1, n=MOVING_CIRCLE_SAMPLES)
-
-    fig.add_trace(go.Scatter3d(x=Xc1, y=Yc1, z=Zc1, mode="lines", line=dict(width=6, color="#1b9e77"), name="theta1 fixed circle", visible=show_theta1_circle))
-
-    # Circle with fixed theta2
-    Xc2, Yc2, Zc2 = ellipsoid.theta2_circle(eta, theta2, n=MOVING_CIRCLE_SAMPLES)
-
-    fig.add_trace(go.Scatter3d(x=Xc2, y=Yc2, z=Zc2, mode="lines", line=dict(width=6, color="#d95f02"), name="theta2 fixed circle", visible=show_theta2_circle))
 
     # gamma_1
     X1, Y1, Z1 = ellipsoid.gamma1(n=800)
@@ -143,28 +131,6 @@ app.layout = html.Div(
                     tooltip={"placement": "bottom", "always_visible": True},
                 ),
                 html.Br(),
-                html.Label("theta1", style={"fontWeight": "bold", "fontSize": "14px"}),
-                dcc.Slider(
-                    id="theta1-slider",
-                    min=0.0,
-                    max=2 * np.pi,
-                    step=0.01,
-                    value=0.0,
-                    marks={0: "0", round(np.pi, 2): "π", round(2 * np.pi, 2): "2π"},
-                    tooltip={"placement": "bottom", "always_visible": True},
-                ),
-                html.Br(),
-                html.Label("theta2", style={"fontWeight": "bold", "fontSize": "14px"}),
-                dcc.Slider(
-                    id="theta2-slider",
-                    min=0.0,
-                    max=2 * np.pi,
-                    step=0.01,
-                    value=0.0,
-                    marks={0: "0", round(np.pi, 2): "π", round(2 * np.pi, 2): "2π"},
-                    tooltip={"placement": "bottom", "always_visible": True},
-                ),
-                html.Br(),
                 html.Label("s", style={"fontWeight": "bold", "fontSize": "14px"}),
                 dcc.Slider(
                     id="s-slider",
@@ -202,18 +168,6 @@ app.layout = html.Div(
                 dcc.Checklist(
                     id="trajectory-toggle",
                     options=[{"label": " Show Reeb trajectory", "value": "show"}],
-                    value=[],
-                    style={"fontSize": "14px"},
-                ),
-                dcc.Checklist(
-                    id="theta1-circle-toggle",
-                    options=[{"label": " Show fixed theta1 circle", "value": "show"}],
-                    value=[],
-                    style={"fontSize": "14px"},
-                ),
-                dcc.Checklist(
-                    id="theta2-circle-toggle",
-                    options=[{"label": " Show fixed theta2 circle", "value": "show"}],
                     value=[],
                     style={"fontSize": "14px"},
                 ),
@@ -264,7 +218,7 @@ app.layout = html.Div(
             children=[
                 dcc.Graph(
                     id="ellipsoid-graph",
-                    figure=make_figure(0.0, 0.0, 0.0, DEFAULT_S, DEFAULT_M1, DEFAULT_M2, False, False, False, True, True, False, False, False, False),
+                    figure=make_figure(0.0, DEFAULT_S, DEFAULT_M1, DEFAULT_M2, False, True, True, False, False, False, False),
                     style={"height": "100%", "width": "100%"},
                     config={"displayModeBar": True, "scrollZoom": True},
                 )
@@ -277,15 +231,11 @@ app.layout = html.Div(
 @app.callback(
     Output("ellipsoid-graph", "figure", allow_duplicate=True),
     Input("eta-slider", "value"),
-    State("theta1-slider", "value"),
-    State("theta2-slider", "value"),
     prevent_initial_call=True,
 )
-def update_eta_geometry(eta, theta1, theta2):
+def update_eta_geometry(eta):
     X, Y, Z = ellipsoid.torus_surface(eta, n1=140, n2=140)
     Xt, Yt, Zt = ellipsoid.reeb_trajectory(eta, theta1_0=0.0, theta2_0=0.0, T=12.0, N=2500)
-    Xc1, Yc1, Zc1 = ellipsoid.theta1_circle(eta, theta1, n=MOVING_CIRCLE_SAMPLES)
-    Xc2, Yc2, Zc2 = ellipsoid.theta2_circle(eta, theta2, n=MOVING_CIRCLE_SAMPLES)
 
     patched_figure = Patch()
     patched_figure["data"][TRACE_INDEX_SURFACE]["x"] = X.tolist()
@@ -294,12 +244,6 @@ def update_eta_geometry(eta, theta1, theta2):
     patched_figure["data"][TRACE_INDEX_REEB]["x"] = Xt.tolist()
     patched_figure["data"][TRACE_INDEX_REEB]["y"] = Yt.tolist()
     patched_figure["data"][TRACE_INDEX_REEB]["z"] = Zt.tolist()
-    patched_figure["data"][TRACE_INDEX_THETA1_CIRCLE]["x"] = Xc1.tolist()
-    patched_figure["data"][TRACE_INDEX_THETA1_CIRCLE]["y"] = Yc1.tolist()
-    patched_figure["data"][TRACE_INDEX_THETA1_CIRCLE]["z"] = Zc1.tolist()
-    patched_figure["data"][TRACE_INDEX_THETA2_CIRCLE]["x"] = Xc2.tolist()
-    patched_figure["data"][TRACE_INDEX_THETA2_CIRCLE]["y"] = Yc2.tolist()
-    patched_figure["data"][TRACE_INDEX_THETA2_CIRCLE]["z"] = Zc2.tolist()
 
     return patched_figure
 
@@ -307,18 +251,14 @@ def update_eta_geometry(eta, theta1, theta2):
 @app.callback(
     Output("ellipsoid-graph", "figure", allow_duplicate=True),
     Input("trajectory-toggle", "value"),
-    Input("theta1-circle-toggle", "value"),
-    Input("theta2-circle-toggle", "value"),
     Input("gamma1-toggle", "value"),
     Input("gamma2-toggle", "value"),
     Input("contact-planes1-toggle", "value"),
     Input("contact-planes2-toggle", "value"),
     prevent_initial_call=True,
 )
-def update_visibility(trajectory_toggle, theta1_circle_toggle, theta2_circle_toggle, gamma1_toggle, gamma2_toggle, contact_planes1_toggle, contact_planes2_toggle):
+def update_visibility(trajectory_toggle, gamma1_toggle, gamma2_toggle, contact_planes1_toggle, contact_planes2_toggle):
     show_trajectory = "show" in trajectory_toggle
-    show_theta1_circle = "show" in theta1_circle_toggle
-    show_theta2_circle = "show" in theta2_circle_toggle
     show_gamma1 = "show" in gamma1_toggle
     show_gamma2 = "show" in gamma2_toggle
     show_contact_planes1 = "show" in contact_planes1_toggle
@@ -326,36 +266,12 @@ def update_visibility(trajectory_toggle, theta1_circle_toggle, theta2_circle_tog
 
     patched_figure = Patch()
     patched_figure["data"][TRACE_INDEX_REEB]["visible"] = show_trajectory
-    patched_figure["data"][TRACE_INDEX_THETA1_CIRCLE]["visible"] = show_theta1_circle
-    patched_figure["data"][TRACE_INDEX_THETA2_CIRCLE]["visible"] = show_theta2_circle
     patched_figure["data"][TRACE_INDEX_GAMMA1]["visible"] = show_gamma1
     patched_figure["data"][TRACE_INDEX_GAMMA2]["visible"] = show_gamma2
     patched_figure["data"][TRACE_INDEX_CONTACT_PLANES1]["visible"] = show_contact_planes1
     patched_figure["data"][TRACE_INDEX_CONTACT_PLANE_EDGES1]["visible"] = show_contact_planes1
     patched_figure["data"][TRACE_INDEX_CONTACT_PLANES2]["visible"] = show_contact_planes2
     patched_figure["data"][TRACE_INDEX_CONTACT_PLANE_EDGES2]["visible"] = show_contact_planes2
-
-    return patched_figure
-
-
-@app.callback(
-    Output("ellipsoid-graph", "figure", allow_duplicate=True),
-    Input("theta1-slider", "value"),
-    Input("theta2-slider", "value"),
-    State("eta-slider", "value"),
-    prevent_initial_call=True,
-)
-def update_moving_circles(theta1, theta2, eta):
-    Xc1, Yc1, Zc1 = ellipsoid.theta1_circle(eta, theta1, n=MOVING_CIRCLE_SAMPLES)
-    Xc2, Yc2, Zc2 = ellipsoid.theta2_circle(eta, theta2, n=MOVING_CIRCLE_SAMPLES)
-
-    patched_figure = Patch()
-    patched_figure["data"][TRACE_INDEX_THETA1_CIRCLE]["x"] = Xc1.tolist()
-    patched_figure["data"][TRACE_INDEX_THETA1_CIRCLE]["y"] = Yc1.tolist()
-    patched_figure["data"][TRACE_INDEX_THETA1_CIRCLE]["z"] = Zc1.tolist()
-    patched_figure["data"][TRACE_INDEX_THETA2_CIRCLE]["x"] = Xc2.tolist()
-    patched_figure["data"][TRACE_INDEX_THETA2_CIRCLE]["y"] = Yc2.tolist()
-    patched_figure["data"][TRACE_INDEX_THETA2_CIRCLE]["z"] = Zc2.tolist()
 
     return patched_figure
 
