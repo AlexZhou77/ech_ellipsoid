@@ -36,7 +36,7 @@ def sanitize_multiplicity(value, default=1):
     return max(1, int(value))
 
 
-def make_figure(eta, s=DEFAULT_S, m1=DEFAULT_M1, m2=DEFAULT_M2, show_trajectory=False, show_gamma1=True, show_gamma2=True, show_contact_planes1=False, show_contact_planes2=False, show_braid1=False, show_braid2=False):
+def make_figure(eta, s=DEFAULT_S, m1=DEFAULT_M1, m2=DEFAULT_M2, show_trajectory=False, show_gamma1=True, show_gamma2=True, show_contact_planes=False, show_braid1=False, show_braid2=False):
     fig = go.Figure()
 
     m1 = sanitize_multiplicity(m1, DEFAULT_M1)
@@ -65,14 +65,14 @@ def make_figure(eta, s=DEFAULT_S, m1=DEFAULT_M1, m2=DEFAULT_M2, show_trajectory=
     # Sampled contact planes along gamma_1
     plane_x, plane_y, plane_z, plane_i, plane_j, plane_k, edge_x, edge_y, edge_z = ellipsoid.gamma1_contact_plane_patches()
 
-    fig.add_trace(go.Mesh3d(x=plane_x, y=plane_y, z=plane_z, i=plane_i, j=plane_j, k=plane_k, color="#34d399", opacity=0.34, flatshading=True, name="Contact planes along gamma_1", visible=show_contact_planes1, hoverinfo="skip"))
-    fig.add_trace(go.Scatter3d(x=edge_x, y=edge_y, z=edge_z, mode="lines", line=dict(width=3, color="#059669"), name="Contact plane edges", visible=show_contact_planes1, hoverinfo="skip"))
+    fig.add_trace(go.Mesh3d(x=plane_x, y=plane_y, z=plane_z, i=plane_i, j=plane_j, k=plane_k, color="#34d399", opacity=0.34, flatshading=True, name="Contact planes along gamma_1", visible=show_contact_planes, hoverinfo="skip"))
+    fig.add_trace(go.Scatter3d(x=edge_x, y=edge_y, z=edge_z, mode="lines", line=dict(width=3, color="#059669"), name="Contact plane edges", visible=show_contact_planes, hoverinfo="skip"))
 
     # Sampled contact planes along gamma_2
     plane2_x, plane2_y, plane2_z, plane2_i, plane2_j, plane2_k, edge2_x, edge2_y, edge2_z = ellipsoid.gamma2_contact_plane_patches()
 
-    fig.add_trace(go.Mesh3d(x=plane2_x, y=plane2_y, z=plane2_z, i=plane2_i, j=plane2_j, k=plane2_k, color="#f9a8d4", opacity=0.34, flatshading=True, name="Contact planes along gamma_2", visible=show_contact_planes2, hoverinfo="skip"))
-    fig.add_trace(go.Scatter3d(x=edge2_x, y=edge2_y, z=edge2_z, mode="lines", line=dict(width=3, color="#ec4899"), name="Contact plane edges gamma_2", visible=show_contact_planes2, hoverinfo="skip"))
+    fig.add_trace(go.Mesh3d(x=plane2_x, y=plane2_y, z=plane2_z, i=plane2_i, j=plane2_j, k=plane2_k, color="#f9a8d4", opacity=0.34, flatshading=True, name="Contact planes along gamma_2", visible=show_contact_planes, hoverinfo="skip"))
+    fig.add_trace(go.Scatter3d(x=edge2_x, y=edge2_y, z=edge2_z, mode="lines", line=dict(width=3, color="#ec4899"), name="Contact plane edges gamma_2", visible=show_contact_planes, hoverinfo="skip"))
 
     braid_branches = ellipsoid.braid_slice_branches(s, m1, m2, n=BRAID_SAMPLES)
     braid1 = braid_branches[0] if braid_branches else empty_trace_xyz()
@@ -108,7 +108,7 @@ app.layout = html.Div(
     children=[
         # Left panel
         html.Div(
-            style={"width": "280px", "padding": "24px", "borderRight": "1px solid #ddd", "boxSizing": "border-box"},
+            style={"width": "340px", "padding": "24px", "borderRight": "1px solid #ddd", "boxSizing": "border-box", "overflowY": "auto"},
             children=[
                 html.H2("Instructions", style={"marginTop": "0", "fontSize": "24px"}),
                 dcc.Markdown(
@@ -194,26 +194,20 @@ The parameter $s$ is the $\mathbb{R}$-coordinate in the symplectization $\mathbb
                     style={"fontSize": "14px"},
                 ),
                 dcc.Checklist(
-                    id="braid1-toggle",
-                    options=[{"label": " Braid around gamma_1", "value": "show"}],
-                    value=[],
-                    style={"fontSize": "14px"},
-                ),
-                dcc.Checklist(
                     id="gamma2-toggle",
                     options=[{"label": " Show gamma_2", "value": "show"}],
                     value=["show"],
                     style={"fontSize": "14px"},
                 ),
                 dcc.Checklist(
-                    id="contact-planes1-toggle",
-                    options=[{"label": " Show contact planes on gamma_1", "value": "show"}],
+                    id="contact-planes-toggle",
+                    options=[{"label": " Show contact planes", "value": "show"}],
                     value=[],
                     style={"fontSize": "14px"},
                 ),
                 dcc.Checklist(
-                    id="contact-planes2-toggle",
-                    options=[{"label": " Show contact planes on gamma_2", "value": "show"}],
+                    id="braid1-toggle",
+                    options=[{"label": " Braid around gamma_1", "value": "show"}],
                     value=[],
                     style={"fontSize": "14px"},
                 ),
@@ -234,7 +228,7 @@ The parameter $s$ is the $\mathbb{R}$-coordinate in the symplectization $\mathbb
             children=[
                 dcc.Graph(
                     id="ellipsoid-graph",
-                    figure=make_figure(0.0, DEFAULT_S, DEFAULT_M1, DEFAULT_M2, False, True, True, False, False, False, False),
+                    figure=make_figure(0.0, DEFAULT_S, DEFAULT_M1, DEFAULT_M2, False, True, True, False, False, False),
                     style={"height": "100%", "width": "100%"},
                     config={"displayModeBar": True, "scrollZoom": True},
                 )
@@ -269,25 +263,23 @@ def update_eta_geometry(eta):
     Input("trajectory-toggle", "value"),
     Input("gamma1-toggle", "value"),
     Input("gamma2-toggle", "value"),
-    Input("contact-planes1-toggle", "value"),
-    Input("contact-planes2-toggle", "value"),
+    Input("contact-planes-toggle", "value"),
     prevent_initial_call=True,
 )
-def update_visibility(trajectory_toggle, gamma1_toggle, gamma2_toggle, contact_planes1_toggle, contact_planes2_toggle):
+def update_visibility(trajectory_toggle, gamma1_toggle, gamma2_toggle, contact_planes_toggle):
     show_trajectory = "show" in trajectory_toggle
     show_gamma1 = "show" in gamma1_toggle
     show_gamma2 = "show" in gamma2_toggle
-    show_contact_planes1 = "show" in contact_planes1_toggle
-    show_contact_planes2 = "show" in contact_planes2_toggle
+    show_contact_planes = "show" in contact_planes_toggle
 
     patched_figure = Patch()
     patched_figure["data"][TRACE_INDEX_REEB]["visible"] = show_trajectory
     patched_figure["data"][TRACE_INDEX_GAMMA1]["visible"] = show_gamma1
     patched_figure["data"][TRACE_INDEX_GAMMA2]["visible"] = show_gamma2
-    patched_figure["data"][TRACE_INDEX_CONTACT_PLANES1]["visible"] = show_contact_planes1
-    patched_figure["data"][TRACE_INDEX_CONTACT_PLANE_EDGES1]["visible"] = show_contact_planes1
-    patched_figure["data"][TRACE_INDEX_CONTACT_PLANES2]["visible"] = show_contact_planes2
-    patched_figure["data"][TRACE_INDEX_CONTACT_PLANE_EDGES2]["visible"] = show_contact_planes2
+    patched_figure["data"][TRACE_INDEX_CONTACT_PLANES1]["visible"] = show_contact_planes
+    patched_figure["data"][TRACE_INDEX_CONTACT_PLANE_EDGES1]["visible"] = show_contact_planes
+    patched_figure["data"][TRACE_INDEX_CONTACT_PLANES2]["visible"] = show_contact_planes
+    patched_figure["data"][TRACE_INDEX_CONTACT_PLANE_EDGES2]["visible"] = show_contact_planes
 
     return patched_figure
 
