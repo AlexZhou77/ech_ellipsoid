@@ -5,11 +5,10 @@ class Ellipsoid:
     def __init__(self, a=1.0, b=np.sqrt(2.0)):
         self.a = float(a)
         self.b = float(b)
-        # Use the opposite real point so the Seifert disks for gamma_1 and gamma_2
-        # project away from their unique intersection point.
+        # The default pole used for stereographic projection.
         self.pole_eta = math.pi / 4
-        self.pole_theta1 = math.pi
-        self.pole_theta2 = math.pi
+        self.pole_theta1 = 0.0
+        self.pole_theta2 = 0.0
 
     def ellipsoid_point(self, eta, theta1, theta2):
         eta, theta1, theta2 = np.broadcast_arrays(eta, theta1, theta2)
