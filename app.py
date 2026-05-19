@@ -110,9 +110,25 @@ app.layout = html.Div(
         html.Div(
             style={"width": "280px", "padding": "24px", "borderRight": "1px solid #ddd", "boxSizing": "border-box"},
             children=[
-                html.H2("Parameters", style={"marginTop": "0", "fontSize": "24px"}),
-                html.P(
-                    "Move eta to choose a torus foliation.",
+                html.H2("Instructions", style={"marginTop": "0", "fontSize": "24px"}),
+                dcc.Markdown(
+                    r"""
+This tool visualizes the Reeb dynamics on the boundary $Y = \partial E(a,b)$ of an ellipsoid.
+
+We use coordinates $(\eta, \theta_1, \theta_2)$ on $Y$ given by
+
+$$
+z_1 = \sqrt{a / \pi}\, \cos(\eta) e^{i\theta_1}, \qquad
+z_2 = \sqrt{b / \pi}\, \sin(\eta) e^{i\theta_2},
+$$
+
+where $0 \leq \eta \leq \pi/2$ and $\theta_1, \theta_2$ are angular coordinates mod $2\pi$.
+
+For each fixed $\eta$, the corresponding level set is a torus invariant under the Reeb flow.
+
+The parameter $s$ is the $\mathbb{R}$-coordinate in the symplectization $\mathbb{R} \times Y$. The integers $m_1$ and $m_2$ are the multiplicities of $\gamma_1$ and $\gamma_2$ in the orbit set.
+                    """,
+                    mathjax=True,
                     style={"fontSize": "14px", "lineHeight": "1.45", "color": "#444"},
                 ),
                 html.Br(),
