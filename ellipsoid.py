@@ -5,10 +5,11 @@ class Ellipsoid:
     def __init__(self, a=1.0, b=np.sqrt(2.0)):
         self.a = float(a)
         self.b = float(b)
-        # The default pole used for stereographic projection. 
+        # Use the opposite real point so the Seifert disks for gamma_1 and gamma_2
+        # project away from their unique intersection point.
         self.pole_eta = math.pi / 4
-        self.pole_theta1 = 0.0
-        self.pole_theta2 = 0.0
+        self.pole_theta1 = math.pi
+        self.pole_theta2 = math.pi
 
     def ellipsoid_point(self, eta, theta1, theta2):
         eta, theta1, theta2 = np.broadcast_arrays(eta, theta1, theta2)
@@ -181,6 +182,36 @@ class Ellipsoid:
             np.zeros_like(R),
             z2_radius * np.cos(TH),
             z2_radius * np.sin(TH),
+        ], axis=-1)
+
+        w = self.stereographic_projection_ellipsoid(x)
+        return w[..., 0], w[..., 1], w[..., 2]
+
+    def gamma1_seifert_disk(self, nr=80, ntheta=160):
+        rho = np.linspace(0.0, 1.0, nr)
+        theta = np.linspace(0.0, 2.0 * np.pi, ntheta)
+        RHO, TH = np.meshgrid(rho, theta, indexing="ij")
+
+        x = np.stack([
+            np.sqrt(self.a / np.pi) * RHO * np.cos(TH),
+            np.sqrt(self.a / np.pi) * RHO * np.sin(TH),
+            np.sqrt(self.b / np.pi) * np.sqrt(np.clip(1.0 - RHO ** 2, 0.0, None)),
+            np.zeros_like(RHO),
+        ], axis=-1)
+
+        w = self.stereographic_projection_ellipsoid(x)
+        return w[..., 0], w[..., 1], w[..., 2]
+
+    def gamma2_seifert_disk(self, nr=80, ntheta=160):
+        rho = np.linspace(0.0, 1.0, nr)
+        theta = np.linspace(0.0, 2.0 * np.pi, ntheta)
+        RHO, TH = np.meshgrid(rho, theta, indexing="ij")
+
+        x = np.stack([
+            np.sqrt(self.a / np.pi) * np.sqrt(np.clip(1.0 - RHO ** 2, 0.0, None)),
+            np.zeros_like(RHO),
+            np.sqrt(self.b / np.pi) * RHO * np.cos(TH),
+            np.sqrt(self.b / np.pi) * RHO * np.sin(TH),
         ], axis=-1)
 
         w = self.stereographic_projection_ellipsoid(x)
