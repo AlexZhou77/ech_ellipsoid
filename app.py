@@ -12,14 +12,12 @@ TRACE_INDEX_SURFACE = 0
 TRACE_INDEX_REEB = 1
 TRACE_INDEX_GAMMA1 = 2
 TRACE_INDEX_GAMMA2 = 3
-TRACE_INDEX_DISK1 = 4
-TRACE_INDEX_DISK2 = 5
-TRACE_INDEX_CONTACT_PLANES1 = 6
-TRACE_INDEX_CONTACT_PLANE_EDGES1 = 7
-TRACE_INDEX_CONTACT_PLANES2 = 8
-TRACE_INDEX_CONTACT_PLANE_EDGES2 = 9
-TRACE_INDEX_BRAID1 = 10
-TRACE_INDEX_BRAID2 = 11
+TRACE_INDEX_CONTACT_PLANES1 = 4
+TRACE_INDEX_CONTACT_PLANE_EDGES1 = 5
+TRACE_INDEX_CONTACT_PLANES2 = 6
+TRACE_INDEX_CONTACT_PLANE_EDGES2 = 7
+TRACE_INDEX_BRAID1 = 8
+TRACE_INDEX_BRAID2 = 9
 
 MOVING_CIRCLE_SAMPLES = 360
 BRAID_SAMPLES = 500
@@ -38,7 +36,7 @@ def sanitize_multiplicity(value, default=1):
     return max(1, int(value))
 
 
-def make_figure(eta, s=DEFAULT_S, m1=DEFAULT_M1, m2=DEFAULT_M2, show_trajectory=False, show_gamma1=True, show_gamma2=True, show_disk1=False, show_disk2=False, show_contact_planes1=False, show_contact_planes2=False, show_braid1=False, show_braid2=False):
+def make_figure(eta, s=DEFAULT_S, m1=DEFAULT_M1, m2=DEFAULT_M2, show_trajectory=False, show_gamma1=True, show_gamma2=True, show_contact_planes1=False, show_contact_planes2=False, show_braid1=False, show_braid2=False):
     fig = go.Figure()
 
     m1 = sanitize_multiplicity(m1, DEFAULT_M1)
@@ -63,13 +61,6 @@ def make_figure(eta, s=DEFAULT_S, m1=DEFAULT_M1, m2=DEFAULT_M2, show_trajectory=
     X2, Y2, Z2 = ellipsoid.gamma2(n=800)
 
     fig.add_trace(go.Scatter3d(x=X2, y=Y2, z=Z2, mode="lines", line=dict(width=8, color="#ff9aa2"), name="gamma_2: z1 = 0", visible=show_gamma2))
-
-    # Spanning disks in the filling, projected to R^3
-    disk1_x, disk1_y, disk1_z = ellipsoid.gamma1_spanning_disk()
-    fig.add_trace(go.Surface(x=disk1_x, y=disk1_y, z=disk1_z, opacity=0.32, colorscale=[[0.0, "#93c5fd"], [1.0, "#60a5fa"]], showscale=False, name="Projected D1 disk", visible=show_disk1, hoverinfo="skip"))
-
-    disk2_x, disk2_y, disk2_z = ellipsoid.gamma2_spanning_disk()
-    fig.add_trace(go.Surface(x=disk2_x, y=disk2_y, z=disk2_z, opacity=0.32, colorscale=[[0.0, "#f9a8d4"], [1.0, "#f472b6"]], showscale=False, name="Projected D2 disk", visible=show_disk2, hoverinfo="skip"))
 
     # Sampled contact planes along gamma_1
     plane_x, plane_y, plane_z, plane_i, plane_j, plane_k, edge_x, edge_y, edge_z = ellipsoid.gamma1_contact_plane_patches()
@@ -187,12 +178,6 @@ app.layout = html.Div(
                     style={"fontSize": "14px"},
                 ),
                 dcc.Checklist(
-                    id="disk1-toggle",
-                    options=[{"label": " Show projected D1 disk", "value": "show"}],
-                    value=[],
-                    style={"fontSize": "14px"},
-                ),
-                dcc.Checklist(
                     id="braid1-toggle",
                     options=[{"label": " Braid around gamma_1", "value": "show"}],
                     value=[],
@@ -202,12 +187,6 @@ app.layout = html.Div(
                     id="gamma2-toggle",
                     options=[{"label": " Show gamma_2", "value": "show"}],
                     value=["show"],
-                    style={"fontSize": "14px"},
-                ),
-                dcc.Checklist(
-                    id="disk2-toggle",
-                    options=[{"label": " Show projected D2 disk", "value": "show"}],
-                    value=[],
                     style={"fontSize": "14px"},
                 ),
                 dcc.Checklist(
@@ -239,7 +218,7 @@ app.layout = html.Div(
             children=[
                 dcc.Graph(
                     id="ellipsoid-graph",
-                    figure=make_figure(0.0, DEFAULT_S, DEFAULT_M1, DEFAULT_M2, False, True, True, False, False, False, False, False, False),
+                    figure=make_figure(0.0, DEFAULT_S, DEFAULT_M1, DEFAULT_M2, False, True, True, False, False, False, False),
                     style={"height": "100%", "width": "100%"},
                     config={"displayModeBar": True, "scrollZoom": True},
                 )
@@ -274,18 +253,14 @@ def update_eta_geometry(eta):
     Input("trajectory-toggle", "value"),
     Input("gamma1-toggle", "value"),
     Input("gamma2-toggle", "value"),
-    Input("disk1-toggle", "value"),
-    Input("disk2-toggle", "value"),
     Input("contact-planes1-toggle", "value"),
     Input("contact-planes2-toggle", "value"),
     prevent_initial_call=True,
 )
-def update_visibility(trajectory_toggle, gamma1_toggle, gamma2_toggle, disk1_toggle, disk2_toggle, contact_planes1_toggle, contact_planes2_toggle):
+def update_visibility(trajectory_toggle, gamma1_toggle, gamma2_toggle, contact_planes1_toggle, contact_planes2_toggle):
     show_trajectory = "show" in trajectory_toggle
     show_gamma1 = "show" in gamma1_toggle
     show_gamma2 = "show" in gamma2_toggle
-    show_disk1 = "show" in disk1_toggle
-    show_disk2 = "show" in disk2_toggle
     show_contact_planes1 = "show" in contact_planes1_toggle
     show_contact_planes2 = "show" in contact_planes2_toggle
 
@@ -293,8 +268,6 @@ def update_visibility(trajectory_toggle, gamma1_toggle, gamma2_toggle, disk1_tog
     patched_figure["data"][TRACE_INDEX_REEB]["visible"] = show_trajectory
     patched_figure["data"][TRACE_INDEX_GAMMA1]["visible"] = show_gamma1
     patched_figure["data"][TRACE_INDEX_GAMMA2]["visible"] = show_gamma2
-    patched_figure["data"][TRACE_INDEX_DISK1]["visible"] = show_disk1
-    patched_figure["data"][TRACE_INDEX_DISK2]["visible"] = show_disk2
     patched_figure["data"][TRACE_INDEX_CONTACT_PLANES1]["visible"] = show_contact_planes1
     patched_figure["data"][TRACE_INDEX_CONTACT_PLANE_EDGES1]["visible"] = show_contact_planes1
     patched_figure["data"][TRACE_INDEX_CONTACT_PLANES2]["visible"] = show_contact_planes2
