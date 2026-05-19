@@ -81,6 +81,64 @@ class Ellipsoid:
         coords_3d = projected @ basis.T
 
         return coords_3d
+
+    def _stereographic_differential_s3(self, z, q, v):
+        z = np.asarray(z, dtype=float)
+        v = np.asarray(v, dtype=float)
+        q = self._normalize(q)
+
+        dot = np.sum(z * q, axis=-1, keepdims=True)
+        dv_dot = np.sum(v * q, axis=-1, keepdims=True)
+        denom = 1.0 - dot
+
+        if np.any(np.abs(denom) < 1e-10):
+            raise ValueError("Differential undefined at the stereographic projection pole.")
+
+        numerator = z - dot * q
+        tangent_image = ((v - dv_dot * q) * denom + numerator * dv_dot) / (denom ** 2)
+
+        basis = self._orthonormal_basis_perp_to(q)
+        return tangent_image @ basis.T
+
+    def _contact_plane_patch_data(self, centers, dir1, dir2, scale):
+        patch_vertices = []
+        outline_x = []
+        outline_y = []
+        outline_z = []
+        tri_i = []
+        tri_j = []
+        tri_k = []
+
+        for index, (center, basis1, basis2) in enumerate(zip(centers, dir1, dir2)):
+            corner0 = center + scale * (basis1 + basis2)
+            corner1 = center + scale * (basis1 - basis2)
+            corner2 = center + scale * (-basis1 - basis2)
+            corner3 = center + scale * (-basis1 + basis2)
+            corners = np.array([corner0, corner1, corner2, corner3])
+
+            start = 4 * index
+            patch_vertices.extend(corners.tolist())
+            tri_i.extend([start, start])
+            tri_j.extend([start + 1, start + 2])
+            tri_k.extend([start + 2, start + 3])
+
+            loop = np.vstack([corners, corners[0]])
+            outline_x.extend(loop[:, 0].tolist() + [np.nan])
+            outline_y.extend(loop[:, 1].tolist() + [np.nan])
+            outline_z.extend(loop[:, 2].tolist() + [np.nan])
+
+        patch_vertices = np.array(patch_vertices)
+        return (
+            patch_vertices[:, 0],
+            patch_vertices[:, 1],
+            patch_vertices[:, 2],
+            np.array(tri_i),
+            np.array(tri_j),
+            np.array(tri_k),
+            np.array(outline_x),
+            np.array(outline_y),
+            np.array(outline_z),
+        )
     
     def stereographic_projection_ellipsoid(self, x):
         p = self.ellipsoid_point(self.pole_eta, self.pole_theta1, self.pole_theta2)
@@ -197,129 +255,49 @@ class Ellipsoid:
         w = self.stereographic_projection_ellipsoid(x)
         return w[:, 0], w[:, 1], w[:, 2]
 
-    def gamma1_contact_plane_patches(self, n=14, eta_offset=0.09, scale=0.11):
+    def gamma1_contact_plane_patches(self, n=14, scale=0.11):
         theta1 = np.linspace(0.0, 2.0 * np.pi, n, endpoint=False)
+        q = self._ellipsoid_to_s3(self.ellipsoid_point(self.pole_eta, self.pole_theta1, self.pole_theta2))
 
         base = self.ellipsoid_point(0.0, theta1, 0.0)
-        basis1 = self.ellipsoid_point(eta_offset, theta1, 0.0)
-        basis2 = self.ellipsoid_point(eta_offset, theta1, 0.5 * np.pi)
+        base_s3 = self._ellipsoid_to_s3(base)
+        base_proj = self._stereographic_projection_s3(base_s3, q)
 
-        base_proj = self.stereographic_projection_ellipsoid(base)
-        basis1_proj = self.stereographic_projection_ellipsoid(basis1)
-        basis2_proj = self.stereographic_projection_ellipsoid(basis2)
+        z2_real = np.broadcast_to(np.array([0.0, 0.0, 1.0, 0.0]), base_s3.shape)
+        z2_imag = np.broadcast_to(np.array([0.0, 0.0, 0.0, 1.0]), base_s3.shape)
+        vec1 = self._stereographic_differential_s3(base_s3, q, z2_real)
+        vec2 = self._stereographic_differential_s3(base_s3, q, z2_imag)
 
-        vec1 = basis1_proj - base_proj
-        vec2 = basis2_proj - base_proj
-
-        vec1_norm = np.linalg.norm(vec1, axis=1, keepdims=True)
-        vec1_norm = np.clip(vec1_norm, 1e-12, None)
+        vec1_norm = np.clip(np.linalg.norm(vec1, axis=1, keepdims=True), 1e-12, None)
         unit_vec1 = vec1 / vec1_norm
 
         vec2 = vec2 - np.sum(vec2 * unit_vec1, axis=1, keepdims=True) * unit_vec1
-        vec2_norm = np.linalg.norm(vec2, axis=1, keepdims=True)
-        vec2_norm = np.clip(vec2_norm, 1e-12, None)
+        vec2_norm = np.clip(np.linalg.norm(vec2, axis=1, keepdims=True), 1e-12, None)
         unit_vec2 = vec2 / vec2_norm
 
-        patch_vertices = []
-        outline_x = []
-        outline_y = []
-        outline_z = []
-        tri_i = []
-        tri_j = []
-        tri_k = []
+        return self._contact_plane_patch_data(base_proj, unit_vec1, unit_vec2, scale)
 
-        for index, (center, dir1, dir2) in enumerate(zip(base_proj, unit_vec1, unit_vec2)):
-            corner0 = center + scale * (dir1 + dir2)
-            corner1 = center + scale * (dir1 - dir2)
-            corner2 = center + scale * (-dir1 - dir2)
-            corner3 = center + scale * (-dir1 + dir2)
-            corners = np.array([corner0, corner1, corner2, corner3])
-
-            start = 4 * index
-            patch_vertices.extend(corners.tolist())
-            tri_i.extend([start, start])
-            tri_j.extend([start + 1, start + 2])
-            tri_k.extend([start + 2, start + 3])
-
-            loop = np.vstack([corners, corners[0]])
-            outline_x.extend(loop[:, 0].tolist() + [np.nan])
-            outline_y.extend(loop[:, 1].tolist() + [np.nan])
-            outline_z.extend(loop[:, 2].tolist() + [np.nan])
-
-        patch_vertices = np.array(patch_vertices)
-        return (
-            patch_vertices[:, 0],
-            patch_vertices[:, 1],
-            patch_vertices[:, 2],
-            np.array(tri_i),
-            np.array(tri_j),
-            np.array(tri_k),
-            np.array(outline_x),
-            np.array(outline_y),
-            np.array(outline_z),
-        )
-
-    def gamma2_contact_plane_patches(self, n=14, eta_offset=0.09, scale=0.11):
+    def gamma2_contact_plane_patches(self, n=14, scale=0.11):
         theta2 = np.linspace(0.0, 2.0 * np.pi, n, endpoint=False)
+        q = self._ellipsoid_to_s3(self.ellipsoid_point(self.pole_eta, self.pole_theta1, self.pole_theta2))
 
         base = self.ellipsoid_point(0.5 * np.pi, 0.0, theta2)
-        basis1 = self.ellipsoid_point(0.5 * np.pi - eta_offset, 0.0, theta2)
-        basis2 = self.ellipsoid_point(0.5 * np.pi - eta_offset, 0.5 * np.pi, theta2)
+        base_s3 = self._ellipsoid_to_s3(base)
+        base_proj = self._stereographic_projection_s3(base_s3, q)
 
-        base_proj = self.stereographic_projection_ellipsoid(base)
-        basis1_proj = self.stereographic_projection_ellipsoid(basis1)
-        basis2_proj = self.stereographic_projection_ellipsoid(basis2)
+        z1_real = np.broadcast_to(np.array([1.0, 0.0, 0.0, 0.0]), base_s3.shape)
+        z1_imag = np.broadcast_to(np.array([0.0, 1.0, 0.0, 0.0]), base_s3.shape)
+        vec1 = self._stereographic_differential_s3(base_s3, q, z1_real)
+        vec2 = self._stereographic_differential_s3(base_s3, q, z1_imag)
 
-        vec1 = basis1_proj - base_proj
-        vec2 = basis2_proj - base_proj
-
-        vec1_norm = np.linalg.norm(vec1, axis=1, keepdims=True)
-        vec1_norm = np.clip(vec1_norm, 1e-12, None)
+        vec1_norm = np.clip(np.linalg.norm(vec1, axis=1, keepdims=True), 1e-12, None)
         unit_vec1 = vec1 / vec1_norm
 
         vec2 = vec2 - np.sum(vec2 * unit_vec1, axis=1, keepdims=True) * unit_vec1
-        vec2_norm = np.linalg.norm(vec2, axis=1, keepdims=True)
-        vec2_norm = np.clip(vec2_norm, 1e-12, None)
+        vec2_norm = np.clip(np.linalg.norm(vec2, axis=1, keepdims=True), 1e-12, None)
         unit_vec2 = vec2 / vec2_norm
 
-        patch_vertices = []
-        outline_x = []
-        outline_y = []
-        outline_z = []
-        tri_i = []
-        tri_j = []
-        tri_k = []
-
-        for index, (center, dir1, dir2) in enumerate(zip(base_proj, unit_vec1, unit_vec2)):
-            corner0 = center + scale * (dir1 + dir2)
-            corner1 = center + scale * (dir1 - dir2)
-            corner2 = center + scale * (-dir1 - dir2)
-            corner3 = center + scale * (-dir1 + dir2)
-            corners = np.array([corner0, corner1, corner2, corner3])
-
-            start = 4 * index
-            patch_vertices.extend(corners.tolist())
-            tri_i.extend([start, start])
-            tri_j.extend([start + 1, start + 2])
-            tri_k.extend([start + 2, start + 3])
-
-            loop = np.vstack([corners, corners[0]])
-            outline_x.extend(loop[:, 0].tolist() + [np.nan])
-            outline_y.extend(loop[:, 1].tolist() + [np.nan])
-            outline_z.extend(loop[:, 2].tolist() + [np.nan])
-
-        patch_vertices = np.array(patch_vertices)
-        return (
-            patch_vertices[:, 0],
-            patch_vertices[:, 1],
-            patch_vertices[:, 2],
-            np.array(tri_i),
-            np.array(tri_j),
-            np.array(tri_k),
-            np.array(outline_x),
-            np.array(outline_y),
-            np.array(outline_z),
-        )
+        return self._contact_plane_patch_data(base_proj, unit_vec1, unit_vec2, scale)
 
     def reeb_trajectory(self, eta, theta1_0=0.0, theta2_0=0.0, T=12.0, N=4000):
         """
