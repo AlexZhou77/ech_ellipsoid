@@ -154,6 +154,38 @@ class Ellipsoid:
         w = self.stereographic_projection_ellipsoid(x)
         return w[..., 0], w[..., 1], w[..., 2]
 
+    def gamma1_spanning_disk(self, nr=80, ntheta=160):
+        radius = np.linspace(0.0, 1.0, nr)
+        theta = np.linspace(0.0, 2.0 * np.pi, ntheta)
+        R, TH = np.meshgrid(radius, theta, indexing="ij")
+
+        z1_radius = np.sqrt(self.a / np.pi) * R
+        x = np.stack([
+            z1_radius * np.cos(TH),
+            z1_radius * np.sin(TH),
+            np.zeros_like(R),
+            np.zeros_like(R),
+        ], axis=-1)
+
+        w = self.stereographic_projection_ellipsoid(x)
+        return w[..., 0], w[..., 1], w[..., 2]
+
+    def gamma2_spanning_disk(self, nr=80, ntheta=160):
+        radius = np.linspace(0.0, 1.0, nr)
+        theta = np.linspace(0.0, 2.0 * np.pi, ntheta)
+        R, TH = np.meshgrid(radius, theta, indexing="ij")
+
+        z2_radius = np.sqrt(self.b / np.pi) * R
+        x = np.stack([
+            np.zeros_like(R),
+            np.zeros_like(R),
+            z2_radius * np.cos(TH),
+            z2_radius * np.sin(TH),
+        ], axis=-1)
+
+        w = self.stereographic_projection_ellipsoid(x)
+        return w[..., 0], w[..., 1], w[..., 2]
+
     def theta1_circle(self, eta, theta1, n=800):
         theta2 = np.linspace(0, 2 * np.pi, n)
         x = self.ellipsoid_point(eta, theta1, theta2)
